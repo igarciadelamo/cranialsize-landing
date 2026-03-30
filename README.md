@@ -1,6 +1,6 @@
 # CranialSize — Landing Page
 
-Marketing and informational landing page for CranialSize, a web application for osteopaths to track and analyze infant cranial measurements.
+Marketing and informational landing page for [CranialSize](https://github.com/igarciadelamo/cranialsize), a web application for osteopaths to track and analyze infant cranial measurements.
 
 ## About CranialSize
 
