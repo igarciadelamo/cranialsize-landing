@@ -1,0 +1,746 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>CranialSize — Medición craneal pediátrica para osteópatas</title>
+  <meta name="description" content="CranialSize es una herramienta gratuita para osteópatas pediátricos. Registra medidas craneales, visualiza la evolución con percentiles WHO y gestiona el historial de cada paciente."/>
+  <meta property="og:title" content="CranialSize — Medición craneal pediátrica para osteópatas"/>
+  <meta property="og:description" content="Herramienta gratuita para osteópatas: registro de medidas craneales, gráficas de evolución con percentiles WHO y gestión de pacientes."/>
+  <meta property="og:type" content="website"/>
+  <meta property="og:url" content="https://cranialsize.com"/>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><circle cx='50' cy='50' r='45' fill='%2314b8a6'/><circle cx='50' cy='50' r='20' fill='none' stroke='white' stroke-width='8'/></svg>"/>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,400;0,600;1,400&family=IBM+Plex+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg:           #f0fdfa;
+      --surface:      #ffffff;
+      --border:       #ccfbf1;
+      --border-mid:   #99f6e4;
+      --text:         #0f172a;
+      --text-muted:   #64748b;
+      --primary:      #14b8a6;
+      --primary-dark: #0d9488;
+      --primary-light:#f0fdfa;
+      --primary-pale: #ccfbf1;
+      --primary-deep: #0f766e;
+      --green:        #16a34a;
+    }
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html { scroll-behavior: smooth; }
+
+    body {
+      font-family: 'IBM Plex Sans', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      font-weight: 300;
+      -webkit-font-smoothing: antialiased;
+      overflow-x: hidden;
+    }
+
+    ::-webkit-scrollbar { width: 6px; }
+    ::-webkit-scrollbar-track { background: var(--bg); }
+    ::-webkit-scrollbar-thumb { background: var(--border-mid); border-radius: 4px; }
+    ::-webkit-scrollbar-thumb:hover { background: var(--primary); }
+
+    @keyframes fade-up {
+      from { opacity: 0; transform: translateY(18px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+    @keyframes float {
+      0%, 100% { transform: translateY(0px); }
+      50%      { transform: translateY(-8px); }
+    }
+    @keyframes pulse-dot {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50%      { opacity: 0.4; transform: scale(0.65); }
+    }
+    @keyframes glow-pulse {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50%      { opacity: 0.7; transform: scale(1.07); }
+    }
+
+    .reveal {
+      opacity: 0;
+      transform: translateY(22px);
+      transition: opacity 0.6s ease, transform 0.6s ease;
+    }
+    .reveal.visible { opacity: 1; transform: translateY(0); }
+
+    /* ─── NAV ─── */
+    nav {
+      position: fixed; top: 0; left: 0; right: 0; z-index: 200;
+      padding: 0 3rem; height: 64px;
+      display: flex; align-items: center; justify-content: space-between;
+      transition: background 0.35s, border-color 0.35s, box-shadow 0.35s;
+    }
+    nav.scrolled {
+      background: rgba(240,253,250,0.93);
+      backdrop-filter: blur(14px);
+      border-bottom: 1px solid var(--border);
+      box-shadow: 0 1px 14px rgba(20,184,166,0.07);
+    }
+    .nav-logo {
+      font-family: 'Lora', serif;
+      font-size: 1.2rem; font-weight: 600;
+      color: var(--text); letter-spacing: -0.01em;
+      text-decoration: none;
+      display: flex; align-items: center; gap: 0.5rem;
+    }
+    .nav-logo-dot {
+      width: 7px; height: 7px;
+      background: var(--primary); border-radius: 50%;
+      animation: pulse-dot 2.5s ease-in-out infinite;
+    }
+    .nav-right { display: flex; align-items: center; gap: 2rem; }
+    .nav-link { font-size: 0.85rem; color: var(--text-muted); text-decoration: none; transition: color 0.2s; }
+    .nav-link:hover { color: var(--text); }
+    .btn-nav {
+      display: inline-flex; align-items: center; gap: 0.45rem;
+      font-family: 'IBM Plex Sans', sans-serif;
+      font-size: 0.82rem; font-weight: 500;
+      background: var(--primary); color: #fff;
+      border: none; padding: 0.5rem 1.1rem;
+      border-radius: 6px; text-decoration: none; cursor: pointer;
+      transition: background 0.2s, transform 0.15s, box-shadow 0.2s;
+      box-shadow: 0 2px 10px rgba(20,184,166,0.3);
+    }
+    .btn-nav:hover { background: var(--primary-dark); transform: translateY(-1px); box-shadow: 0 4px 16px rgba(20,184,166,0.4); }
+
+    /* ─── HERO ─── */
+    .hero-wrap {
+      position: relative; overflow: hidden;
+      min-height: 100svh;
+      display: flex; flex-direction: column; justify-content: center;
+    }
+    .hero-wrap::before {
+      content: '';
+      position: absolute; inset: 0;
+      background-image:
+        linear-gradient(rgba(20,184,166,0.07) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(20,184,166,0.07) 1px, transparent 1px);
+      background-size: 44px 44px;
+      mask-image: radial-gradient(ellipse 85% 75% at 55% 45%, black 30%, transparent 80%);
+      pointer-events: none;
+    }
+    .hero-glow {
+      position: absolute; pointer-events: none;
+      width: 800px; height: 700px;
+      background: radial-gradient(circle, rgba(20,184,166,0.18) 0%, transparent 65%);
+      top: -200px; right: -180px;
+      animation: glow-pulse 7s ease-in-out infinite;
+    }
+    .hero {
+      max-width: 1200px; margin: 0 auto;
+      padding: 9rem 3rem 5rem;
+      display: grid; grid-template-columns: 1fr 1fr;
+      gap: 5rem; align-items: center;
+      position: relative; z-index: 1;
+    }
+    .hero-eyebrow {
+      display: inline-flex; align-items: center; gap: 0.5rem;
+      font-size: 0.72rem; font-weight: 500;
+      text-transform: uppercase; letter-spacing: 0.12em; color: var(--primary);
+      margin-bottom: 1.5rem;
+      opacity: 0; animation: fade-up 0.55s 0.05s ease forwards;
+    }
+    .hero-eyebrow::before { content: ''; display: block; width: 20px; height: 1px; background: var(--primary); }
+    .hero h1 {
+      font-family: 'Lora', serif;
+      font-size: clamp(2.3rem, 3.8vw, 3.4rem);
+      font-weight: 600; line-height: 1.15; letter-spacing: -0.025em;
+      margin-bottom: 1.5rem;
+      opacity: 0; animation: fade-up 0.55s 0.15s ease forwards;
+    }
+    .hero h1 em { font-style: italic; color: var(--primary); }
+    .hero-desc {
+      font-size: 1rem; line-height: 1.8; color: var(--text-muted);
+      margin-bottom: 2.5rem; max-width: 430px;
+      opacity: 0; animation: fade-up 0.55s 0.25s ease forwards;
+    }
+    .hero-actions {
+      display: flex; gap: 0.75rem; flex-wrap: wrap; margin-bottom: 2rem;
+      opacity: 0; animation: fade-up 0.55s 0.35s ease forwards;
+    }
+    .hero-trust {
+      display: flex; align-items: center; gap: 0.75rem;
+      font-size: 0.78rem; color: var(--text-muted);
+      opacity: 0; animation: fade-up 0.55s 0.45s ease forwards;
+    }
+    .trust-avatars { display: flex; }
+    .trust-avatar {
+      width: 28px; height: 28px; border-radius: 50%;
+      border: 2px solid var(--surface);
+      background: var(--primary-pale);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 0.75rem; margin-left: -8px;
+    }
+    .trust-avatar:first-child { margin-left: 0; }
+    .trust-sep { width: 1px; height: 14px; background: var(--border-mid); }
+
+    .btn-primary {
+      display: inline-flex; align-items: center; gap: 0.5rem;
+      font-family: 'IBM Plex Sans', sans-serif;
+      font-size: 0.9rem; font-weight: 500;
+      background: var(--primary); color: #fff;
+      text-decoration: none; padding: 0.8rem 1.7rem;
+      border-radius: 7px;
+      transition: background 0.2s, transform 0.15s, box-shadow 0.2s;
+      box-shadow: 0 4px 18px rgba(20,184,166,0.38);
+    }
+    .btn-primary:hover { background: var(--primary-dark); transform: translateY(-2px); box-shadow: 0 8px 28px rgba(20,184,166,0.46); }
+    .btn-ghost {
+      display: inline-flex; align-items: center; gap: 0.5rem;
+      font-family: 'IBM Plex Sans', sans-serif;
+      font-size: 0.9rem; font-weight: 400;
+      color: var(--text-muted); text-decoration: none;
+      padding: 0.8rem 1.7rem;
+      border: 1px solid var(--border); border-radius: 7px; background: var(--surface);
+      transition: border-color 0.2s, color 0.2s;
+    }
+    .btn-ghost:hover { border-color: var(--border-mid); color: var(--text); }
+
+    /* ─── DASHBOARD MOCKUP ─── */
+    .hero-visual {
+      position: relative;
+      opacity: 0; animation: fade-up 0.7s 0.5s ease forwards;
+    }
+    .hero-visual-inner { animation: float 5s ease-in-out infinite; }
+    .dashboard-card {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 16px; overflow: hidden;
+      box-shadow: 0 4px 6px rgba(0,0,0,0.03), 0 20px 48px rgba(0,0,0,0.08), 0 0 0 1px rgba(20,184,166,0.05);
+    }
+    .db-topbar {
+      padding: 0.9rem 1.2rem; border-bottom: 1px solid var(--border);
+      display: flex; align-items: center; justify-content: space-between;
+      background: linear-gradient(to right, var(--surface), var(--primary-light));
+    }
+    .db-topbar-title { font-size: 0.78rem; font-weight: 500; color: var(--text-muted); }
+    .db-badge {
+      font-size: 0.63rem; font-weight: 500;
+      background: var(--primary-pale); color: var(--primary);
+      padding: 0.2rem 0.6rem; border-radius: 100px;
+      display: flex; align-items: center; gap: 0.3rem;
+    }
+    .db-badge-dot {
+      width: 5px; height: 5px; border-radius: 50%; background: var(--green);
+      animation: pulse-dot 2s ease-in-out infinite;
+    }
+    .db-body { padding: 1.2rem; }
+    .db-patient { display: flex; align-items: center; gap: 0.8rem; margin-bottom: 1.2rem; }
+    .db-avatar {
+      width: 38px; height: 38px; background: var(--primary-pale);
+      border-radius: 50%; display: flex; align-items: center; justify-content: center;
+      font-size: 1rem; border: 2px solid var(--border);
+    }
+    .db-patient-name { font-size: 0.85rem; font-weight: 500; }
+    .db-patient-meta { font-size: 0.72rem; color: var(--text-muted); margin-top: 0.1rem; }
+    .cranial-chart {
+      background: var(--bg); border: 1px solid var(--border);
+      border-radius: 10px; padding: 1rem 1rem 0.6rem; margin-bottom: 1rem;
+    }
+    .chart-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.75rem; }
+    .chart-title { font-size: 0.7rem; color: var(--text-muted); font-weight: 500; text-transform: uppercase; letter-spacing: 0.07em; }
+    .chart-value-wrap { display: flex; align-items: baseline; gap: 0.2rem; }
+    .chart-value { font-family: 'Lora', serif; font-size: 1.4rem; font-weight: 600; color: var(--text); }
+    .chart-unit { font-size: 0.68rem; color: var(--text-muted); }
+    .chart-trend { font-size: 0.68rem; color: var(--green); margin-left: 0.3rem; }
+    .chart-svg { width: 100%; height: 78px; display: block; }
+    .db-metrics { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 0.6rem; }
+    .metric-box {
+      background: var(--bg); border: 1px solid var(--border);
+      border-radius: 8px; padding: 0.7rem 0.8rem;
+      transition: border-color 0.2s;
+    }
+    .metric-box:hover { border-color: var(--border-mid); }
+    .metric-label { font-size: 0.62rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.07em; margin-bottom: 0.3rem; }
+    .metric-value { font-family: 'Lora', serif; font-size: 1.05rem; font-weight: 600; }
+    .metric-unit { font-size: 0.6rem; color: var(--text-muted); font-family: 'IBM Plex Sans', sans-serif; font-weight: 300; }
+    .metric-delta { font-size: 0.62rem; color: var(--green); margin-top: 0.15rem; }
+    .float-pill {
+      position: absolute; bottom: -1rem; left: -1.8rem;
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 10px; padding: 0.7rem 1rem;
+      box-shadow: 0 8px 28px rgba(0,0,0,0.1);
+      display: flex; align-items: center; gap: 0.6rem;
+      font-size: 0.78rem; max-width: 240px;
+    }
+    .pill-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--green); flex-shrink: 0; }
+    .pill-text { color: var(--text-muted); line-height: 1.4; }
+    .pill-text strong { color: var(--text); font-weight: 500; }
+    .float-stat {
+      position: absolute; top: 1.5rem; right: -1.5rem;
+      background: var(--primary-deep); border-radius: 10px;
+      padding: 0.8rem 1rem;
+      box-shadow: 0 8px 24px rgba(15,118,110,0.35);
+      color: #fff;
+    }
+    .float-stat-num { font-family: 'Lora', serif; font-size: 1.6rem; font-weight: 600; line-height: 1; }
+    .float-stat-label { font-size: 0.68rem; opacity: 0.7; margin-top: 0.15rem; }
+
+    /* ─── DIVIDER ─── */
+    .divider { border: none; border-top: 1px solid var(--border); margin: 0; }
+
+    /* ─── LOGO BAR ─── */
+    .logo-bar {
+      padding: 2.5rem 3rem; max-width: 1200px; margin: 0 auto;
+      display: flex; align-items: center; justify-content: center;
+      gap: 2rem; flex-wrap: wrap;
+    }
+    .logo-bar-label { font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.1em; color: var(--text-muted); white-space: nowrap; }
+    .logo-bar-items { display: flex; align-items: center; gap: 2.5rem; flex-wrap: wrap; justify-content: center; }
+    .logo-bar-item {
+      font-family: 'Lora', serif; font-size: 0.95rem; font-weight: 600;
+      color: var(--border-mid); letter-spacing: -0.01em; transition: color 0.2s;
+    }
+    .logo-bar-item:hover { color: var(--text-muted); }
+
+    /* ─── FEATURES ─── */
+    .features { max-width: 1200px; margin: 0 auto; padding: 7rem 3rem; }
+    .section-header { margin-bottom: 3.5rem; }
+    .section-eyebrow {
+      font-size: 0.72rem; font-weight: 500; text-transform: uppercase;
+      letter-spacing: 0.12em; color: var(--primary);
+      display: flex; align-items: center; gap: 0.5rem; margin-bottom: 1rem;
+    }
+    .section-eyebrow::before { content: ''; display: block; width: 20px; height: 1px; background: var(--primary); }
+    .section-title {
+      font-family: 'Lora', serif;
+      font-size: clamp(1.8rem, 3vw, 2.6rem);
+      font-weight: 600; line-height: 1.2; letter-spacing: -0.02em; max-width: 560px;
+    }
+    .features-grid {
+      display: grid; grid-template-columns: repeat(3, 1fr);
+      gap: 1px; background: var(--border);
+      border: 1px solid var(--border); border-radius: 14px; overflow: hidden;
+    }
+    .feature-item {
+      background: var(--surface); padding: 2rem;
+      transition: background 0.25s; position: relative;
+    }
+    .feature-item::after {
+      content: '';
+      position: absolute; bottom: 0; left: 2rem; right: 2rem;
+      height: 2px; background: var(--primary);
+      transform: scaleX(0); transform-origin: left;
+      transition: transform 0.3s ease; border-radius: 2px;
+    }
+    .feature-item:hover { background: var(--primary-light); }
+    .feature-item:hover::after { transform: scaleX(1); }
+    .feature-icon {
+      width: 40px; height: 40px; margin-bottom: 1.2rem;
+      background: var(--primary-pale); border-radius: 9px;
+      display: flex; align-items: center; justify-content: center; color: var(--primary);
+      transition: background 0.25s;
+    }
+    .feature-item:hover .feature-icon { background: rgba(20,184,166,0.2); }
+    .feature-item h3 { font-family: 'Lora', serif; font-size: 1.05rem; font-weight: 600; margin-bottom: 0.6rem; line-height: 1.3; }
+    .feature-item p { font-size: 0.88rem; line-height: 1.65; color: var(--text-muted); }
+
+    /* ─── HOW IT WORKS ─── */
+    .how {
+      background: var(--surface);
+      border-top: 1px solid var(--border); border-bottom: 1px solid var(--border);
+      padding: 7rem 3rem;
+    }
+    .how-inner { max-width: 1200px; margin: 0 auto; }
+    .steps {
+      display: grid; grid-template-columns: repeat(4, 1fr);
+      gap: 2rem; margin-top: 3.5rem; counter-reset: steps;
+      position: relative;
+    }
+    .steps::before {
+      content: '';
+      position: absolute;
+      top: 1rem; left: calc(12.5% + 0.5rem); right: calc(12.5% + 0.5rem);
+      height: 1px;
+      background: linear-gradient(to right, var(--border), var(--border-mid), var(--border));
+    }
+    .step { counter-increment: steps; position: relative; }
+    .step-num {
+      font-family: 'Lora', serif; font-size: 2rem; font-weight: 600; line-height: 1;
+      margin-bottom: 1.2rem; color: transparent;
+      -webkit-text-stroke: 1.5px var(--border-mid);
+      position: relative; z-index: 1;
+    }
+    .step-num::before { content: counter(steps, decimal-leading-zero); }
+    .step h3 { font-size: 0.9rem; font-weight: 500; margin-bottom: 0.5rem; line-height: 1.4; }
+    .step p { font-size: 0.83rem; color: var(--text-muted); line-height: 1.65; }
+
+    /* ─── STATS ─── */
+    .stats-wrap { padding: 0 3rem; margin-top: 7rem; }
+    .stats-section {
+      max-width: 1200px; margin: 0 auto;
+      display: grid; grid-template-columns: repeat(3, 1fr);
+      gap: 1px; background: var(--border);
+      border: 1px solid var(--border); border-radius: 14px; overflow: hidden;
+    }
+    .stat-box { background: var(--surface); padding: 3rem 2.5rem; text-align: center; }
+    .stat-num { font-family: 'Lora', serif; font-size: clamp(2.5rem, 4vw, 3.5rem); font-weight: 600; color: var(--primary); line-height: 1; margin-bottom: 0.5rem; }
+    .stat-label { font-size: 0.9rem; color: var(--text-muted); line-height: 1.6; }
+
+    /* ─── CTA ─── */
+    .cta-section {
+      background: var(--primary-deep); padding: 8rem 3rem;
+      text-align: center; position: relative; overflow: hidden;
+      margin-top: 7rem;
+    }
+    .cta-section::before {
+      content: ''; position: absolute; inset: 0;
+      background:
+        radial-gradient(ellipse 55% 90% at 20% 50%, rgba(20,184,166,0.25) 0%, transparent 60%),
+        radial-gradient(ellipse 45% 70% at 80% 50%, rgba(13,148,136,0.18) 0%, transparent 60%);
+    }
+    .cta-section::after {
+      content: ''; position: absolute; inset: 0;
+      background-image:
+        linear-gradient(rgba(255,255,255,0.04) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255,255,255,0.04) 1px, transparent 1px);
+      background-size: 40px 40px;
+    }
+    .cta-inner { position: relative; z-index: 1; max-width: 600px; margin: 0 auto; }
+    .cta-eyebrow {
+      display: inline-flex; align-items: center; gap: 0.5rem;
+      font-size: 0.72rem; font-weight: 500; text-transform: uppercase;
+      letter-spacing: 0.12em; color: rgba(255,255,255,0.5); margin-bottom: 1.5rem;
+    }
+    .cta-eyebrow::before { content: ''; display: block; width: 20px; height: 1px; background: rgba(255,255,255,0.3); }
+    .cta-section h2 {
+      font-family: 'Lora', serif;
+      font-size: clamp(2.2rem, 4vw, 3.2rem); font-weight: 600;
+      color: #fff; line-height: 1.18; letter-spacing: -0.025em; margin-bottom: 1rem;
+    }
+    .cta-section p { font-size: 1rem; color: rgba(255,255,255,0.6); line-height: 1.75; margin-bottom: 2.5rem; }
+    .btn-white {
+      display: inline-flex; align-items: center; gap: 0.6rem;
+      font-family: 'IBM Plex Sans', sans-serif;
+      font-size: 0.9rem; font-weight: 500;
+      background: #fff; color: var(--primary-deep);
+      text-decoration: none; padding: 0.9rem 2rem;
+      border-radius: 7px; transition: transform 0.15s, box-shadow 0.2s;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.25);
+    }
+    .btn-white:hover { transform: translateY(-2px); box-shadow: 0 8px 30px rgba(0,0,0,0.35); }
+    .cta-note { font-size: 0.75rem; color: rgba(255,255,255,0.35); margin-top: 1.2rem; }
+
+    /* ─── FOOTER ─── */
+    footer {
+      background: var(--bg); border-top: 1px solid var(--border);
+      padding: 2rem 3rem;
+      display: flex; align-items: center; justify-content: space-between;
+      flex-wrap: wrap; gap: 1rem;
+    }
+    .footer-logo {
+      font-family: 'Lora', serif; font-size: 1rem; font-weight: 600;
+      color: var(--text); text-decoration: none;
+      display: flex; align-items: center; gap: 0.5rem;
+    }
+    .footer-logo-dot { width: 6px; height: 6px; background: var(--primary); border-radius: 50%; }
+    footer p { font-size: 0.78rem; color: var(--text-muted); }
+
+    /* ─── RESPONSIVE ─── */
+    @media (max-width: 1024px) { .float-stat { display: none; } }
+    @media (max-width: 900px) {
+      .hero { grid-template-columns: 1fr; gap: 3.5rem; padding: 8rem 1.5rem 4rem; }
+      .hero-desc { max-width: 100%; }
+      .features-grid { grid-template-columns: 1fr; }
+      .steps { grid-template-columns: 1fr 1fr; }
+      .steps::before { display: none; }
+      .stats-section { grid-template-columns: 1fr; }
+      .stats-wrap { padding: 0 1.5rem; }
+      nav { padding: 0 1.5rem; }
+      .nav-link { display: none; }
+      footer { padding: 1.5rem; }
+      .logo-bar { padding: 2rem 1.5rem; }
+      .features, .how { padding: 5rem 1.5rem; }
+      .cta-section { padding: 5rem 1.5rem; }
+    }
+    @media (max-width: 560px) {
+      .steps { grid-template-columns: 1fr; }
+      .db-metrics { grid-template-columns: 1fr 1fr; }
+      .hero-actions { flex-direction: column; }
+      .float-pill { display: none; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- NAV -->
+<nav id="main-nav">
+  <a class="nav-logo" href="#">
+    <span class="nav-logo-dot"></span>
+    CranialSize
+  </a>
+  <div class="nav-right">
+    <a class="nav-link" href="#funciona">Cómo funciona</a>
+    <a class="nav-link" href="#caracteristicas">Características</a>
+    <a class="btn-nav" href="https://app.cranialsize.com">
+      Abrir la app
+      <svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+    </a>
+  </div>
+</nav>
+
+<!-- HERO -->
+<section class="hero-wrap">
+  <div class="hero-glow"></div>
+  <div class="hero">
+    <div class="hero-content">
+      <div class="hero-eyebrow">Osteopatía pediátrica</div>
+      <h1>Medición craneal <em>precisa</em> al alcance del clínico</h1>
+      <p class="hero-desc">CranialSize ayuda a osteópatas a registrar y visualizar la evolución de las medidas craneales de bebés, con gráficas claras y seguimiento por paciente.</p>
+      <div class="hero-actions">
+        <a class="btn-primary" href="https://app.cranialsize.com">
+          Abrir CranialSize
+          <svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+        </a>
+        <a class="btn-ghost" href="#funciona">
+          <svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polygon points="10 8 16 12 10 16 10 8"/></svg>
+          Ver cómo funciona
+        </a>
+      </div>
+      <div class="hero-trust">
+        <div class="trust-avatars">
+          <div class="trust-avatar">👩‍⚕️</div>
+          <div class="trust-avatar">🧑‍⚕️</div>
+          <div class="trust-avatar">👨‍⚕️</div>
+        </div>
+        <div class="trust-sep"></div>
+        <span>Usado por osteópatas pediátricos en activo</span>
+      </div>
+    </div>
+
+    <div class="hero-visual">
+      <div class="hero-visual-inner">
+        <div class="float-stat">
+          <div class="float-stat-num">+18%</div>
+          <div class="float-stat-label">mejora media CI</div>
+        </div>
+        <div class="dashboard-card">
+          <div class="db-topbar">
+            <span class="db-topbar-title">Panel de seguimiento</span>
+            <span class="db-badge">
+              <span class="db-badge-dot"></span>
+              Actualizado hoy
+            </span>
+          </div>
+          <div class="db-body">
+            <div class="db-patient">
+              <div class="db-avatar">👶</div>
+              <div>
+                <div class="db-patient-name">Martín G.</div>
+                <div class="db-patient-meta">4 meses · 12 sesiones registradas</div>
+              </div>
+            </div>
+            <div class="cranial-chart">
+              <div class="chart-header">
+                <span class="chart-title">Índice craneal (CI)</span>
+                <div class="chart-value-wrap">
+                  <span class="chart-value">82.4</span>
+                  <span class="chart-unit">%</span>
+                  <span class="chart-trend">↑ +3.2</span>
+                </div>
+              </div>
+              <svg class="chart-svg" viewBox="0 0 320 78" preserveAspectRatio="none">
+                <defs>
+                  <linearGradient id="cg" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stop-color="#14b8a6" stop-opacity="0.22"/>
+                    <stop offset="100%" stop-color="#14b8a6" stop-opacity="0"/>
+                  </linearGradient>
+                </defs>
+                <line x1="0" y1="19" x2="320" y2="19" stroke="#e2f8f5" stroke-width="1"/>
+                <line x1="0" y1="39" x2="320" y2="39" stroke="#e2f8f5" stroke-width="1"/>
+                <line x1="0" y1="59" x2="320" y2="59" stroke="#e2f8f5" stroke-width="1"/>
+                <path d="M0,67 C40,64 60,57 90,49 C120,41 140,43 170,35 C200,27 230,29 260,21 C280,16 300,15 320,13 L320,78 L0,78 Z" fill="url(#cg)"/>
+                <path d="M0,67 C40,64 60,57 90,49 C120,41 140,43 170,35 C200,27 230,29 260,21 C280,16 300,15 320,13" fill="none" stroke="#14b8a6" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+                <circle cx="90"  cy="49" r="3.5" fill="#14b8a6" stroke="white" stroke-width="1.5"/>
+                <circle cx="170" cy="35" r="3.5" fill="#14b8a6" stroke="white" stroke-width="1.5"/>
+                <circle cx="260" cy="21" r="3.5" fill="#14b8a6" stroke="white" stroke-width="1.5"/>
+                <circle cx="320" cy="13" r="5"   fill="#14b8a6" stroke="white" stroke-width="2"/>
+              </svg>
+            </div>
+            <div class="db-metrics">
+              <div class="metric-box">
+                <div class="metric-label">Perímetro</div>
+                <div class="metric-value">41.2<span class="metric-unit"> cm</span></div>
+                <div class="metric-delta">↑ +0.8 cm</div>
+              </div>
+              <div class="metric-box">
+                <div class="metric-label">Diám. AP</div>
+                <div class="metric-value">10.4<span class="metric-unit"> cm</span></div>
+                <div class="metric-delta">↑ +0.3 cm</div>
+              </div>
+              <div class="metric-box">
+                <div class="metric-label">Diám. T</div>
+                <div class="metric-value">8.6<span class="metric-unit"> cm</span></div>
+                <div class="metric-delta">↑ +0.2 cm</div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="float-pill">
+          <div class="pill-dot"></div>
+          <div class="pill-text">Evolución <strong>favorable</strong> en las últimas 4 sesiones</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<hr class="divider">
+
+<!-- LOGO BAR -->
+<div class="logo-bar reveal">
+  <span class="logo-bar-label">Diseñado para</span>
+  <div class="logo-bar-items">
+    <span class="logo-bar-item">Osteopatía pediátrica</span>
+  </div>
+</div>
+
+<hr class="divider">
+
+<!-- FEATURES -->
+<section class="features" id="caracteristicas">
+  <div class="section-header reveal">
+    <div class="section-eyebrow">Características</div>
+    <h2 class="section-title">Todo lo que necesitas para el seguimiento craneal</h2>
+  </div>
+  <div class="features-grid reveal">
+    <div class="feature-item">
+      <div class="feature-icon">
+        <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+      </div>
+      <h3>Registro de medidas</h3>
+      <p>Introduce diámetros, perímetros e índices craneales de forma rápida. El sistema calcula automáticamente los índices derivados.</p>
+    </div>
+    <div class="feature-item">
+      <div class="feature-icon">
+        <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+      </div>
+      <h3>Gráficas de evolución</h3>
+      <p>Visualiza la progresión de cada medida a lo largo de las sesiones con gráficas claras, comparadas con percentiles de referencia.</p>
+    </div>
+    <div class="feature-item">
+      <div class="feature-icon">
+        <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+      </div>
+      <h3>Gestión de pacientes</h3>
+      <p>Accede al historial completo de cada bebé. Todas las sesiones, notas y medidas organizadas en un solo lugar.</p>
+    </div>
+    <div class="feature-item">
+      <div class="feature-icon">
+        <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+      </div>
+      <h3>Acceso seguro</h3>
+      <p>Autenticación mediante Google. Datos privados por cuenta, sin acceso de terceros. Buenas prácticas de privacidad clínica.</p>
+    </div>
+    <div class="feature-item">
+      <div class="feature-icon">
+        <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/></svg>
+      </div>
+      <h3>Multiplataforma</h3>
+      <p>Funciona en cualquier dispositivo con navegador. Sin instalaciones, sin actualizaciones manuales.</p>
+    </div>
+  </div>
+</section>
+
+<hr class="divider">
+
+<!-- HOW IT WORKS -->
+<section class="how" id="funciona">
+  <div class="how-inner">
+    <div class="section-eyebrow reveal">Cómo funciona</div>
+    <h2 class="section-title reveal">De la medición al informe en cuatro pasos</h2>
+    <div class="steps reveal">
+      <div class="step">
+        <div class="step-num"></div>
+        <h3>Inicia sesión con Google</h3>
+        <p>Un clic. Sin contraseñas que recordar. Tu cuenta de Google es tu acceso.</p>
+      </div>
+      <div class="step">
+        <div class="step-num"></div>
+        <h3>Crea el perfil del bebé</h3>
+        <p>Nombre, fecha de nacimiento y datos básicos. La edad del bebé se calcula automáticamente.</p>
+      </div>
+      <div class="step">
+        <div class="step-num"></div>
+        <h3>Registra las medidas</h3>
+        <p>Introduce los datos de cada sesión. Las gráficas se actualizan al instante.</p>
+      </div>
+      <div class="step">
+        <div class="step-num"></div>
+        <h3>Analiza y comparte</h3>
+        <p>Observa la evolución, detecta patrones y exporta el informe para familias u otros profesionales.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<hr class="divider">
+
+<!-- STATS -->
+<div class="stats-wrap">
+  <div class="stats-section reveal">
+    <div class="stat-box">
+      <div class="stat-num">100%</div>
+      <div class="stat-label">Gratuito para osteópatas<br>Sin tarjeta de crédito</div>
+    </div>
+    <div class="stat-box">
+      <div class="stat-num">∞</div>
+      <div class="stat-label">Pacientes y sesiones<br>sin límite</div>
+    </div>
+    <div class="stat-box">
+      <div class="stat-num">1 clic</div>
+      <div class="stat-label">Para iniciar sesión<br>con Google</div>
+    </div>
+  </div>
+</div>
+
+<!-- CTA -->
+<section class="cta-section">
+  <div class="cta-inner reveal">
+    <div class="cta-eyebrow">Empieza hoy</div>
+    <h2>Mide con precisión.<br>Sigue la evolución.</h2>
+    <p>CranialSize es gratuito para osteópatas. Sin tarjeta de crédito, sin instalaciones, sin fricciones.</p>
+    <a class="btn-white" href="https://app.cranialsize.com">
+      Abrir CranialSize — es gratis
+      <svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+    </a>
+    <p class="cta-note">Acceso con Google · Sin instalación · Datos privados</p>
+  </div>
+</section>
+
+<!-- FOOTER -->
+<footer>
+  <a class="footer-logo" href="#top">
+    <span class="footer-logo-dot"></span>
+    CranialSize
+  </a>
+  <p>© 2026 CranialSize · Herramienta clínica para osteopatía pediátrica.</p>
+</footer>
+
+<script>
+  // Nav scroll effect
+  const nav = document.getElementById('main-nav');
+  window.addEventListener('scroll', () => {
+    nav.classList.toggle('scrolled', window.scrollY > 20);
+  }, { passive: true });
+
+  // Scroll reveal via IntersectionObserver
+  const revealEls = document.querySelectorAll('.reveal');
+  const io = new IntersectionObserver((entries) => {
+    entries.forEach(e => {
+      if (e.isIntersecting) {
+        e.target.classList.add('visible');
+        io.unobserve(e.target);
+      }
+    });
+  }, { threshold: 0.1, rootMargin: '0px 0px -40px 0px' });
+  revealEls.forEach(el => io.observe(el));
+</script>
+
+</body>
+</html>
