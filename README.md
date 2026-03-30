@@ -23,13 +23,3 @@ cd cranialsize-landing
 
 2. Open `index.html` in a browser — that's it.
 
-## Related Repositories
-
-| Repo | Description |
-|---|---|
-| [cranialsize](https://github.com/igarciadelamo/cranialsize) | React frontend app |
-| [cranialsize-be](https://github.com/igarciadelamo/cranialsize-be) | FastAPI backend |
-
-## License
-
-This project is licensed under the MIT License.
