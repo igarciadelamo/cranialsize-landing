@@ -11,7 +11,7 @@ CranialSize helps pediatric osteopaths:
 
 ## Tech Stack
 
-> To be defined — depends on chosen framework for the landing.
+Single HTML file with embedded CSS and vanilla JS. No build step, no dependencies.
 
 ## Getting Started
 
@@ -21,15 +21,7 @@ git clone git@cranialsize-github:igarciadelamo/cranialsize-landing.git
 cd cranialsize-landing
 ```
 
-2. Install dependencies
-```bash
-npm install
-```
-
-3. Run the development server
-```bash
-npm run dev
-```
+2. Open `index.html` in a browser — that's it.
 
 ## Related Repositories
 
